@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 const querySchema = z.object({
   limit: z.string().optional().transform(val => val ? parseInt(val, 10) : 50),
   offset: z.string().optional().transform(val => val ? parseInt(val, 10) : 0),
-  filter: z.enum(['all', 'available', 'partial', 'full']).optional().default('all'),
+  filter: z.enum(['all', 'available', 'partial', 'full', 'assigned']).optional().default('all'),
 })
 
 export async function GET(request: NextRequest) {
