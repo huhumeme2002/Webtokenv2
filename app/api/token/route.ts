@@ -84,16 +84,16 @@ export async function POST(request: NextRequest) {
 
       while (retryCount < MAX_RETRIES && !tokenValue) {
         try {
-          // Pick a token with claim_count = 0 (unclaimed)
-          // This ensures 1 token per user
+          // Pick a token with claim_count < 2 (can be shared by 2 users)
+          // Priority: tokens with claim_count = 1 first (to fill up before moving to new ones)
           const tokenResult = await db.execute(sql`
             SELECT id, value, claim_count
             FROM token_pool
-            WHERE claim_count = 0
+            WHERE claim_count < 2
               AND id NOT IN (
                 SELECT token_id FROM deliveries WHERE key_id = ${keyId}
               )
-            ORDER BY created_at ASC
+            ORDER BY claim_count DESC, created_at ASC
             LIMIT 1;
           `)
 
@@ -107,14 +107,14 @@ export async function POST(request: NextRequest) {
 
           console.log(`[Token Selection] Attempt ${retryCount + 1}: Token ${tokenId}, claim_count=${currentClaimCount}`)
 
-          // Assign token to user (increment claim_count to 1)
+          // Assign token to user (increment claim_count, max 2)
           const updateTokenResult = await db.execute(sql`
             UPDATE token_pool
-            SET claim_count = 1,
+            SET claim_count = claim_count + 1,
                 assigned_to = ${keyId},
                 assigned_at = now()
             WHERE id = ${tokenId}
-              AND claim_count = 0
+              AND claim_count < 2
             RETURNING id, claim_count, value;
           `)
 
